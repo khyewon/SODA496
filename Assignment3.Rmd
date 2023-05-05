@@ -1,0 +1,93 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r results='hide'}
+library(ggplot2)
+library(astsa)
+library(forecast)
+library(dplyr)
+library(tidyr)
+library(dynlm)
+library(lmtest)
+
+rm(list = ls())
+```
+
+
+```{r}
+setwd("E:/University/PSU/spring2023/SODA496")
+my_df <- read.csv("hw3_data.csv")
+head(my_df, 10)
+```
+
+
+### add a date
+
+```{r}
+date_df <- read.csv('simulated_data.csv')
+my_df$date <- date_df$date
+class(my_df$date)
+```
+
+```{r}
+my_df$date <- as.Date(my_df$date)
+my_df$date.form <- format(my_df$date, '%m/%d/%Y')
+```
+
+
+### create a basic line plot
+
+```{r}
+ggplot(my_df, aes(x = date, y = y)) +
+    geom_line(size = .6) +
+    scale_x_date(date_breaks = 'year', date_labels = '%Y') +
+    theme_light() +
+    labs(title = "Time Series y",
+         x = "Date",
+         y = '"y" Value') +
+    theme(legend.text = element_text(size = 8),
+          legend.position = 'bottom')
+```
+
+'y' values are highly increase between 2000 to 2001 years, and after 2001, the series has decreasing trends along the years. It has lowest value in between 2006 and 2007. The average mean values are arranged around 6.5.
+
+
+### test the series for white noise
+
+```{r}
+Box.test(my_df$y, 24, 'Ljung')
+```
+
+p-value is less than .5, so reject the null hypothesis, the series is white noise, and conclude the series is not white noise.
+
+
+### model the dynamics of the series
+
+```{r}
+# acf * pacf plots
+acf2(my_df$y, max.lag = 24)
+```
+
+
+
+
+```{r}
+# fit arma model
+fit.arma <- sarima(my_df$y, p = 1, d = 0, q = 1, details = T)
+```
+
+The model seems to fit the data equally well.
+
+
+### fit autoregressive distributed lag model
+
+```{r}
+ADL1 <- dynlm(y ~ L(y, 1) + x, data = my_df)
+summary(ADL1)
+```
+
+The coefficients of the intercept and the lagged dependent variable 'y' are statistically significant in p-value below 0.05.The almost zero residuals of the model and the very small residual standard error both show strong supports on that the model is a good fit for the data. The very large F-statistic also provide further evidence of well-fitted data.
